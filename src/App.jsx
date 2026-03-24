@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { 
   Leaf, Activity, Map as MapIcon, AlertTriangle, 
   TrendingUp, ShieldCheck, HeartPulse, MapPin, 
-  Thermometer, Wind, AlertCircle
+  Thermometer, Wind, AlertCircle, MessageSquare // <-- Added MessageSquare
 } from 'lucide-react';
+
+// IMPORT YOUR CHAT COMPONENT
+import AyushChat from './AyushChat'; 
 
 const SYMPTOM_LIST = [
   "High Fever", "Severe Headache", "Joint Pain", "Dry Cough", 
@@ -14,6 +17,33 @@ const SYMPTOM_LIST = [
 export default function AyushApp() {
   const [activeView, setActiveView] = useState('patient');
 
+  // --- TOP LEVEL INTERCEPT FOR FULL-SCREEN CHAT ---
+  if (activeView === 'chat') {
+    return (
+      <div className="relative w-full h-screen">
+        {/* Floating Navigation to get back to the main app */}
+        <div className="absolute top-4 right-4 z-50 bg-white/60 backdrop-blur-xl p-1.5 rounded-full flex space-x-1 shadow-[0_8px_30px_rgba(46,125,50,0.15)] border border-[#A5D6A7]">
+          <button 
+            onClick={() => setActiveView('patient')} 
+            className="px-4 py-2 text-sm font-bold text-gray-700 hover:text-[#2E7D32] rounded-full hover:bg-white transition-all duration-300 flex items-center"
+          >
+            <HeartPulse className="w-4 h-4 mr-2" /> Exit to Patient Portal
+          </button>
+          <button 
+            onClick={() => setActiveView('admin')} 
+            className="px-4 py-2 text-sm font-bold text-gray-700 hover:text-[#2E7D32] rounded-full hover:bg-white transition-all duration-300 flex items-center"
+          >
+            <Activity className="w-4 h-4 mr-2" /> Exit to Admin
+          </button>
+        </div>
+        
+        {/* The Chat Component */}
+        <AyushChat />
+      </div>
+    );
+  }
+
+  // --- STANDARD PATIENT & ADMIN LAYOUT ---
   return (
     // Global Wrapper: Soft gradient background, Inter/Poppins system fonts
     <div className="min-h-screen bg-gradient-to-br from-[#F7FDF7] to-[#E8F5E9] text-[#1B1B1B] font-sans selection:bg-[#A5D6A7] selection:text-[#1B5E20]">
@@ -56,28 +86,81 @@ export default function AyushApp() {
                 <Activity className="w-4 h-4 mr-2" />
                 Admin Dashboard
               </button>
+              
+              {/* NEW CHAT BUTTON */}
+              <button 
+                onClick={() => setActiveView('chat')}
+                className={`flex items-center px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  activeView === 'chat' 
+                    ? 'bg-white text-[#2E7D32] shadow-md transform scale-105' 
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                AYUSH AI Chat
+              </button>
             </div>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <header className="max-w-4xl mx-auto text-center pt-16 pb-12 px-4">
-        <div className="inline-flex items-center justify-center px-4 py-2 mb-6 rounded-full bg-[#E8F5E9] border border-[#A5D6A7] text-[#2E7D32] font-medium text-sm animate-fade-in-up">
-          <ShieldCheck className="w-4 h-4 mr-2" />
-          AI-Powered Traditional Medicine
+      {/* --- PREMIUM HERO SECTION --- */}
+      <header className="relative w-full overflow-hidden py-24 lg:py-32 flex flex-col items-center justify-center min-h-[60vh]">
+        
+        {/* Layer 1 & 2: Base Gradient & Pattern Overlay */}
+        <div className="absolute inset-0 z-0 bg-gradient-to-br from-[#F7FDF7] to-[#E8F5E9]"></div>
+        <div 
+          className="absolute inset-0 z-0 opacity-[0.04] pointer-events-none mix-blend-multiply" 
+          style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/natural-paper.png')" }}
+        ></div>
+
+        {/* Layer 3: Central Radial Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(165,214,167,0.35),transparent_65%)] pointer-events-none z-0"></div>
+
+        {/* Layer 4: Floating Organic Blobs */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+          {/* Top Left Green Blob */}
+          <div className="absolute -top-[10%] -left-[5%] w-[400px] h-[400px] bg-[#A5D6A7] rounded-full mix-blend-multiply filter blur-[80px] opacity-40 animate-blob"></div>
+          
+          {/* Top Right Deep Green Blob */}
+          <div 
+            className="absolute top-[5%] -right-[5%] w-[350px] h-[350px] bg-[#2E7D32] rounded-full mix-blend-multiply filter blur-[80px] opacity-20 animate-blob" 
+            style={{ animationDelay: '2s' }}
+          ></div>
+          
+          {/* Bottom Center Soft Glow */}
+          <div 
+            className="absolute -bottom-[20%] left-[20%] w-[500px] h-[500px] bg-[#81C784] rounded-full mix-blend-multiply filter blur-[80px] opacity-30 animate-blob" 
+            style={{ animationDelay: '4s' }}
+          ></div>
         </div>
-        <h1 className="text-4xl md:text-5xl font-extrabold text-[#1B1B1B] mb-6 leading-tight">
-          Intelligent <span className="text-[#2E7D32]">AYUSH</span> Health System
-        </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-          Personalized holistic wellness and advanced public health forecasting powered by traditional healing systems and modern artificial intelligence.
-        </p>
+
+        {/* --- Content Layer (Must be z-10 to sit above the blobs) --- */}
+        <div className="relative z-10 max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          
+          {/* Glassmorphic Badge */}
+          <div className="inline-flex items-center justify-center px-6 py-2.5 mb-8 rounded-full bg-white/40 backdrop-blur-md border border-white/60 shadow-[0_4px_15px_rgba(46,125,50,0.08)] text-[#2E7D32] font-semibold text-sm animate-fade-in-up">
+            <ShieldCheck className="w-4 h-4 mr-2 text-[#2E7D32]" />
+            Personalized Wellness Powered by AI
+          </div>
+          
+          {/* Main Heading */}
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-[#1B1B1B] mb-6 leading-[1.15] tracking-tight drop-shadow-sm">
+            Intelligent <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2E7D32] to-[#558B2F]">AYUSH</span><br/> Health System
+          </h1>
+          
+          {/* Subtext with slight glass backing for readability */}
+          <p className="text-lg md:text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed mb-8 bg-white/20 backdrop-blur-sm p-4 rounded-2xl border border-white/30 shadow-sm">
+            Bridging the ancient wisdom of traditional healing with predictive artificial intelligence for personalized care and public health forecasting.
+          </p>
+        </div>
       </header>
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
-        {activeView === 'patient' ? <PatientPortal /> : <AdminDashboard />}
+        {activeView === 'patient' && <PatientPortal />}
+        {activeView === 'admin' && <AdminDashboard />}
       </main>
     </div>
   );
@@ -87,7 +170,6 @@ export default function AyushApp() {
 function PatientPortal() {
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
 
-  // Better UX: Clickable pills instead of a standard select box
   const toggleSymptom = (symptom) => {
     if (selectedSymptoms.includes(symptom)) {
       setSelectedSymptoms(selectedSymptoms.filter(s => s !== symptom));
@@ -106,7 +188,6 @@ function PatientPortal() {
       
       {/* Left Side: Wellness Information */}
       <div className="lg:col-span-5 bg-gradient-to-br from-[#2E7D32] to-[#1B5E20] rounded-[24px] p-10 text-white shadow-[0_10px_40px_rgba(46,125,50,0.2)] relative overflow-hidden">
-        {/* Decorative background element */}
         <Leaf className="absolute -bottom-10 -right-10 w-64 h-64 text-white opacity-5" strokeWidth={1} />
         
         <h2 className="text-3xl font-bold mb-6">Discover Your Balance</h2>
@@ -140,7 +221,6 @@ function PatientPortal() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* Symptom Grid (Replaces standard select) */}
           <div className="flex flex-wrap gap-3 mb-10">
             {SYMPTOM_LIST.map((symptom, idx) => {
               const isSelected = selectedSymptoms.includes(symptom);
@@ -182,10 +262,7 @@ function PatientPortal() {
 function AdminDashboard() {
   return (
     <div className="space-y-6">
-      
-      {/* Top KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* KPI 1 */}
         <div className="bg-white rounded-[20px] p-6 shadow-[0_10px_40px_rgba(46,125,50,0.08)] border border-[#E8F5E9] hover:-translate-y-1 transition-transform duration-300">
           <div className="flex justify-between items-start mb-4">
             <div>
@@ -199,7 +276,6 @@ function AdminDashboard() {
           </p>
         </div>
 
-        {/* KPI 2 */}
         <div className="bg-white rounded-[20px] p-6 shadow-[0_10px_40px_rgba(46,125,50,0.08)] border border-[#E8F5E9] hover:-translate-y-1 transition-transform duration-300">
           <div className="flex justify-between items-start mb-4">
             <div>
@@ -213,7 +289,6 @@ function AdminDashboard() {
           </p>
         </div>
 
-        {/* KPI 3 */}
         <div className="bg-white rounded-[20px] p-6 shadow-[0_10px_40px_rgba(46,125,50,0.08)] border border-[#E8F5E9] hover:-translate-y-1 transition-transform duration-300">
           <div className="flex justify-between items-start mb-4">
             <div>
@@ -228,10 +303,7 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {/* Main Dashboard Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Map Placeholder (Takes up 2 columns) */}
         <div className="lg:col-span-2 bg-white rounded-[24px] p-6 shadow-[0_10px_40px_rgba(46,125,50,0.08)] border border-[#E8F5E9] flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-[#1B1B1B]">Live Outbreak Heatmap</h3>
@@ -241,7 +313,6 @@ function AdminDashboard() {
           </div>
           
           <div className="flex-grow bg-slate-100 rounded-[16px] min-h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-slate-300 relative overflow-hidden">
-             {/* Decorative Map Background effect */}
             <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
             <MapIcon className="w-16 h-16 text-slate-400 mb-4 z-10" />
             <p className="text-slate-500 font-medium z-10">[ Interactive Leaflet Map Component Will Render Here ]</p>
@@ -249,12 +320,10 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* AI Alerts Feed (Takes up 1 column) */}
         <div className="bg-white rounded-[24px] p-6 shadow-[0_10px_40px_rgba(46,125,50,0.08)] border border-[#E8F5E9]">
           <h3 className="text-xl font-bold text-[#1B1B1B] mb-6">Emerging Threats</h3>
           
           <div className="space-y-4">
-            {/* High Risk Alert */}
             <div className="bg-red-50 border border-red-100 p-4 rounded-xl flex items-start space-x-3">
               <AlertCircle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
               <div>
@@ -266,7 +335,6 @@ function AdminDashboard() {
               </div>
             </div>
 
-            {/* Medium Risk Alert */}
             <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-xl flex items-start space-x-3">
               <AlertTriangle className="w-6 h-6 text-yellow-600 shrink-0 mt-0.5" />
               <div>
@@ -275,7 +343,6 @@ function AdminDashboard() {
               </div>
             </div>
 
-             {/* Low Risk / Stable */}
              <div className="bg-[#E8F5E9] border border-[#C8E6C9] p-4 rounded-xl flex items-start space-x-3">
               <ShieldCheck className="w-6 h-6 text-[#2E7D32] shrink-0 mt-0.5" />
               <div>
@@ -285,7 +352,6 @@ function AdminDashboard() {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
