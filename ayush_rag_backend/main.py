@@ -1,5 +1,6 @@
 import os
 from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import tempfile
 import json
@@ -15,6 +16,16 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 load_dotenv()
 
 app = FastAPI(title="AYUSH RAG API", version="1.0")
+
+# --- HACKATHON CORS SETUP ---
+# This allows your frontend teammate's local server to talk to your backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production this is bad, but for a 2-day hackathon, it's a lifesaver
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 print("Loading embedding model...")
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")

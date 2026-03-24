@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Menu, Plus, MessageSquare, Send, Paperclip, 
-  FileText, X, Leaf, User, Sparkles, Settings
+  FileText, X, Leaf, User, Sparkles, Settings, Activity, AlertTriangle
 } from 'lucide-react';
 
 // Mock History for Sidebar
@@ -45,16 +45,19 @@ export default function AyushChat() {
     }
   };
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
     if (!inputValue.trim() && !selectedFile) return;
 
-    // 1. Add User Message
+    // 1. Prepare User Message
+    const currentInput = inputValue;
+    const currentFile = selectedFile;
+    
     const newUserMsg = {
       id: Date.now(),
       sender: 'user',
-      text: inputValue,
-      file: selectedFile ? selectedFile.name : null
+      text: currentInput,
+      file: currentFile ? currentFile.name : null
     };
     
     setMessages(prev => [...prev, newUserMsg]);
@@ -62,18 +65,52 @@ export default function AyushChat() {
     setSelectedFile(null);
     setIsTyping(true);
 
-    // 2. Mock AI Response Delay
-    setTimeout(() => {
-      const mockResponse = {
+    try {
+      // 2. Construct FormData
+      const formData = new FormData();
+      formData.append("symptoms", currentInput || "Please analyze my attached report.");
+      formData.append("system_preference", "both");
+      if (currentFile) {
+        formData.append("file", currentFile);
+      }
+
+      // 3. Send Request to FastAPI Backend
+      const response = await fetch("http://127.0.0.1:8000/analyze_patient", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.error) {
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          sender: 'ai',
+          text: data.error,
+          isError: true
+        }]);
+      } else {
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          sender: 'ai',
+          data: data
+        }]);
+      }
+    } catch (error) {
+      console.error("Backend interaction error:", error);
+      setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'ai',
-        text: newUserMsg.file 
-          ? `I have analyzed "${newUserMsg.file}". Based on your blood work and the principles of Ayurveda, I notice a severe Pitta dosha aggravation. I recommend incorporating cooling herbs like Amla and avoiding spicy, fermented foods. Would you like a 7-day meal plan?`
-          : "Based on the symptoms you described, classical Siddha medicine suggests preparing a decoction of Nilavembu. Ensure you stay hydrated and practice Shavasana to lower your stress levels."
-      };
-      setMessages(prev => [...prev, mockResponse]);
+        text: "I am currently disconnected from my knowledge base...",
+        isError: true
+      }]);
+    } finally {
       setIsTyping(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -158,7 +195,9 @@ export default function AyushChat() {
                 <div className={`max-w-[85%] sm:max-w-[75%] rounded-[20px] px-5 py-4 ${
                   msg.sender === 'user' 
                     ? 'bg-[#2E7D32] text-white rounded-tr-sm shadow-[0_8px_20px_rgba(46,125,50,0.2)]' 
-                    : 'bg-white text-gray-800 rounded-tl-sm shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-[#E8F5E9]'
+                    : msg.isError
+                      ? 'bg-red-50 text-red-800 rounded-tl-sm shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-red-100'
+                      : 'bg-white text-gray-800 rounded-tl-sm shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-[#E8F5E9]'
                 }`}>
                   
                   {/* File Attachment Render */}
@@ -169,7 +208,73 @@ export default function AyushChat() {
                     </div>
                   )}
                   
-                  <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                  {msg.text && (
+                    <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                  )}
+
+                  {msg.data && (
+                    <div className="space-y-4">
+                      {msg.data.summary && (
+                        <p className="text-[15px] leading-relaxed">{msg.data.summary}</p>
+                      )}
+                      
+                      {(msg.data.ayurveda_recommendations?.length > 0 || msg.data.siddha_recommendations?.length > 0) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                          {msg.data.ayurveda_recommendations?.length > 0 && (
+                            <div className="bg-[#F7FDF7] p-3 rounded-xl border border-[#C8E6C9]">
+                              <h4 className="font-bold text-[#2E7D32] mb-2 flex items-center text-sm">
+                                <Leaf className="w-4 h-4 mr-1"/> Ayurveda
+                              </h4>
+                              <ul className="list-disc pl-4 text-sm space-y-1 text-gray-700">
+                                {msg.data.ayurveda_recommendations.map((rec, idx) => (
+                                  <li key={idx}>{rec}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {msg.data.siddha_recommendations?.length > 0 && (
+                            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                              <h4 className="font-bold text-blue-700 mb-2 flex items-center text-sm">
+                                <Activity className="w-4 h-4 mr-1"/> Siddha
+                              </h4>
+                              <ul className="list-disc pl-4 text-sm space-y-1 text-gray-700">
+                                {msg.data.siddha_recommendations.map((rec, idx) => (
+                                  <li key={idx}>{rec}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {msg.data.warnings?.length > 0 && (
+                        <div className="bg-red-50 p-3 rounded-xl border border-red-200 mt-3">
+                          <h4 className="font-bold text-red-700 mb-2 flex items-center text-sm">
+                            <AlertTriangle className="w-4 h-4 mr-1"/> Warnings & Cautions
+                          </h4>
+                          <ul className="list-disc pl-4 text-sm space-y-1 text-red-700 font-medium">
+                            {msg.data.warnings.map((warn, idx) => (
+                              <li key={idx}>{warn}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {msg.data.ayush_sources?.length > 0 && (
+                        <div className="mt-4 pt-3 border-t border-gray-100">
+                          <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Sources Consulted</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {msg.data.ayush_sources.map((src, idx) => (
+                              <span key={idx} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-md border border-gray-200 flex items-center">
+                                <FileText className="w-3 h-3 mr-1"/> {src}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* User Avatar */}
