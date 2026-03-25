@@ -289,7 +289,7 @@ def extract_probability(prob_array):
         
         # If the array has both class 0 and class 1, return class 1's probability
         if len(flat_arr) > 1:
-            return float(flat_arr)
+            return float(flat_arr[1])
         return 0.0
     except Exception as e:
         print(f"Extraction error: {e}")
@@ -330,13 +330,22 @@ def predict_outbreak(request: DashboardRequest):
         # Get Probabilities 
         probabilities = rf_model.predict_proba(feature_df)
         
-        # Safely extract the floats
-        dengue_prob = extract_probability(probabilities)
-        cholera_prob = extract_probability(probabilities)
-        flu_prob = extract_probability(probabilities)
+        # Multi-output classifier returns a list of arrays: [prob_dengue, prob_cholera, prob_flu]
+        if isinstance(probabilities, list) and len(probabilities) >= 3:
+            dengue_prob = extract_probability(probabilities[0])
+            cholera_prob = extract_probability(probabilities[1])
+            flu_prob = extract_probability(probabilities[2])
+        else:
+            # Safely extract the floats if single output
+            dengue_prob = extract_probability(probabilities)
+            cholera_prob = extract_probability(probabilities)
+            flu_prob = extract_probability(probabilities)
 
         print(f"\n--- ZONE {zone.pincode} AI SCORES ---")
         print(f"Dengue: {dengue_prob} | Cholera: {cholera_prob} | Flu: {flu_prob}")
+        print(rf_model.n_features_in_)   # Should print 12
+        print(feature_df.columns.tolist())  # Should match FEATURE_COLS exactly
+        print(feature_df.values)
 
         # Business Logic: Determine Status and AYUSH Response
         alerts = []
