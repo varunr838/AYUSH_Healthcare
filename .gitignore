@@ -1,1 +1,6 @@
 ayush_rag_backend/db/
+# Node
+node_modules/
+package-lock.json
+dist/
+build/
