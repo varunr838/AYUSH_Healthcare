@@ -17,6 +17,7 @@ const SYMPTOM_LIST = [
 
 export default function AyushApp() {
   const [activeView, setActiveView] = useState('patient');
+  const [chatInitialMessage, setChatInitialMessage] = useState('');
 
   // --- TOP LEVEL INTERCEPT FOR FULL-SCREEN CHAT ---
   if (activeView === 'chat') {
@@ -25,13 +26,19 @@ export default function AyushApp() {
         {/* Floating Navigation to get back to the main app */}
         <div className="absolute top-4 right-4 z-50 bg-white/60 backdrop-blur-xl p-1.5 rounded-full flex space-x-1 shadow-[0_8px_30px_rgba(46,125,50,0.15)] border border-[#A5D6A7]">
           <button 
-            onClick={() => setActiveView('patient')} 
+            onClick={() => {
+              setChatInitialMessage('');
+              setActiveView('patient');
+            }} 
             className="px-4 py-2 text-sm font-bold text-gray-700 hover:text-[#2E7D32] rounded-full hover:bg-white transition-all duration-300 flex items-center"
           >
             <HeartPulse className="w-4 h-4 mr-2" /> Exit to Patient Portal
           </button>
           <button 
-            onClick={() => setActiveView('admin')} 
+            onClick={() => {
+              setChatInitialMessage('');
+              setActiveView('admin');
+            }} 
             className="px-4 py-2 text-sm font-bold text-gray-700 hover:text-[#2E7D32] rounded-full hover:bg-white transition-all duration-300 flex items-center"
           >
             <Activity className="w-4 h-4 mr-2" /> Exit to Admin
@@ -39,7 +46,7 @@ export default function AyushApp() {
         </div>
         
         {/* The Chat Component */}
-        <AyushChat />
+        <AyushChat initialMessage={chatInitialMessage} />
       </div>
     );
   }
@@ -90,7 +97,10 @@ export default function AyushApp() {
               
               {/* NEW CHAT BUTTON */}
               <button 
-                onClick={() => setActiveView('chat')}
+                onClick={() => {
+                  setChatInitialMessage('');
+                  setActiveView('chat');
+                }}
                 className={`flex items-center px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                   activeView === 'chat' 
                     ? 'bg-white text-[#2E7D32] shadow-md transform scale-105' 
@@ -160,7 +170,14 @@ export default function AyushApp() {
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
-        {activeView === 'patient' && <PatientPortal />}
+        {activeView === 'patient' && (
+          <PatientPortal 
+            onGenerateProtocol={(symptoms) => {
+              setChatInitialMessage(`Symptoms: ${symptoms.join(", ")}`);
+              setActiveView('chat');
+            }} 
+          />
+        )}
         {activeView === 'admin' && <AdminDashboard />}
       </main>
     </div>
@@ -168,7 +185,7 @@ export default function AyushApp() {
 }
 
 // --- PATIENT PORTAL COMPONENT ---
-function PatientPortal() {
+function PatientPortal({ onGenerateProtocol }) {
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
 
   const toggleSymptom = (symptom) => {
@@ -181,7 +198,9 @@ function PatientPortal() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert(`AI Processing symptoms: ${selectedSymptoms.join(", ")}`);
+    if (onGenerateProtocol) {
+      onGenerateProtocol(selectedSymptoms);
+    }
   };
 
   return (

@@ -9,3 +9,4 @@ langchain-groq
 chromadb
 pypdf
 sentence-transformers
+pandas

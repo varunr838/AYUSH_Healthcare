@@ -11,7 +11,7 @@ const CHAT_HISTORY = [
   { id: 3, title: "Yoga for Acid Reflux", date: "Previous 7 Days" },
 ];
 
-export default function AyushChat() {
+export default function AyushChat({ initialMessage = '' }) {
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -19,8 +19,14 @@ export default function AyushChat() {
       text: "Namaste! I am your AYUSH Sentinel AI. You can describe your symptoms, ask about traditional remedies, or securely upload your medical reports (PDF) for a holistic analysis. How can I guide you today?"
     }
   ]);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState(initialMessage);
   const [isTyping, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    if (initialMessage) {
+      setInputValue(initialMessage);
+    }
+  }, [initialMessage]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
@@ -37,11 +43,14 @@ export default function AyushChat() {
   }, [messages, isTyping]);
 
   const handleFileChange = (e) => {
-    const file = e.target.files;
+    const file = e.target.files[0];
     if (file && file.type === "application/pdf") {
       setSelectedFile(file);
-    } else {
+    } else if (file) {
       alert("Please upload a valid PDF file.");
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -179,7 +188,7 @@ export default function AyushChat() {
         </header>
 
         {/* Messages List */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-32">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           <div className="max-w-3xl mx-auto space-y-8">
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
@@ -299,6 +308,8 @@ export default function AyushChat() {
                 </div>
               </div>
             )}
+            {/* Spacer for absolute input area to ensure sources remain visible when scrolled */}
+            <div className="h-48 shrink-0" />
             <div ref={messagesEndRef} />
           </div>
         </div>
