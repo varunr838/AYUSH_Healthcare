@@ -1,9 +1,13 @@
 import os
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import numpy as np
+import joblib
+from pydantic import BaseModel
 import tempfile
 import json
+import pandas as pd
 
 # Langchain and AI imports
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -30,6 +34,28 @@ app.add_middleware(
 print("Loading embedding model...")
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
+try:
+    rf_model = joblib.load('../models_and_dataset/ayush_outbreak_model.pkl')
+except Exception as e:
+    print(f"Warning: Model not found. {e}")
+    rf_model = None
+class ZoneData(BaseModel):
+    pincode: int
+    temp_c: float
+    humidity_pct: float
+    rainfall_mm: float
+    cluster_gastro: int
+    cluster_respiratory: int
+    cluster_vector_borne: int
+    cluster_vector_borne_3d_lag: float
+    cluster_vector_borne_7d_lag: float
+    cluster_gastro_3d_lag: float
+    cluster_gastro_7d_lag: float
+    cluster_respiratory_3d_lag: float
+    cluster_respiratory_7d_lag: float
+
+class DashboardRequest(BaseModel):
+    zones: list[ZoneData]
 llm = ChatGroq(
     temperature=0.1,
     model_name="llama-3.1-8b-instant",
@@ -89,8 +115,7 @@ async def ingest_guidelines():
         chunk_size=1000, 
         chunk_overlap=200,
         separators=["\n\n", "\n", " ", ""]
-    )
-    
+    )    
     print("Chunking documents...")
     chunks = text_splitter.split_documents(all_documents)
     print(f"Created {len(chunks)} searchable chunks.")
@@ -256,3 +281,99 @@ async def debug_retrieval(
         })
 
     return {"retrieved_context": debug_output}
+def extract_probability(prob_array):
+    """Safely extracts the float probability of class '1' from sklearn's nested output."""
+    try:
+        # np.flatten() turns [[0.2, 0.8]] into a flat [0.2, 0.8] regardless of nesting
+        flat_arr = np.array(prob_array).flatten() 
+        
+        # If the array has both class 0 and class 1, return class 1's probability
+        if len(flat_arr) > 1:
+            return float(flat_arr)
+        return 0.0
+    except Exception as e:
+        print(f"Extraction error: {e}")
+        return 0.0
+@app.post("/predict_outbreak")
+def predict_outbreak(request: DashboardRequest):
+    if rf_model is None:
+        raise HTTPException(status_code=500, detail="Outbreak model not loaded.")
+
+    results = []
+    
+    # Process each zone sent by the frontend (or fetched from your DB)
+    for zone in request.zones:
+        # 1. Create the raw DataFrame
+        raw_df = pd.DataFrame([{
+            'temp_c': zone.temp_c,
+            'humidity_pct': zone.humidity_pct,
+            'rainfall_mm': zone.rainfall_mm,
+            'cluster_gastro': zone.cluster_gastro,
+            'cluster_respiratory': zone.cluster_respiratory,
+            'cluster_vector_borne': zone.cluster_vector_borne,
+            'cluster_vector_borne_3d_lag': zone.cluster_vector_borne_3d_lag,
+            'cluster_vector_borne_7d_lag': zone.cluster_vector_borne_7d_lag,
+            'cluster_gastro_3d_lag': zone.cluster_gastro_3d_lag,
+            'cluster_gastro_7d_lag': zone.cluster_gastro_7d_lag,
+            'cluster_respiratory_3d_lag': zone.cluster_respiratory_3d_lag,
+            'cluster_respiratory_7d_lag': zone.cluster_respiratory_7d_lag
+        }])
+
+        # 2. THE BULLETPROOF FIX: Force columns to match the model's exact training memory
+        # 'rf_model.feature_names_in_' is a built-in variable that remembers the training CSV
+        try:
+            feature_df = raw_df[rf_model.feature_names_in_]
+        except Exception as e:
+            print(f"Feature alignment error! Check your column names: {e}")
+            feature_df = raw_df # Fallback
+
+        # Get Probabilities 
+        probabilities = rf_model.predict_proba(feature_df)
+        
+        # Safely extract the floats
+        dengue_prob = extract_probability(probabilities)
+        cholera_prob = extract_probability(probabilities)
+        flu_prob = extract_probability(probabilities)
+
+        print(f"\n--- ZONE {zone.pincode} AI SCORES ---")
+        print(f"Dengue: {dengue_prob} | Cholera: {cholera_prob} | Flu: {flu_prob}")
+
+        # Business Logic: Determine Status and AYUSH Response
+        alerts = []
+        if dengue_prob > 0.75:
+            alerts.append({
+                "disease": "Dengue",
+                "level": "CRITICAL",
+                "color": "red",
+                "message": f"{zone.cluster_vector_borne} vector-borne cases in 24h. Heavy rainfall detected.",
+                "action": "Dispatch Nilavembu Kudineer & Papaya Leaf Extract"
+            })
+        elif dengue_prob > 0.40:
+             alerts.append({
+                "disease": "Dengue",
+                "level": "WATCH",
+                "color": "yellow",
+                "message": f"Vector-borne symptoms rising. Monitor closely.",
+                "action": "Issue mosquito control advisories."
+            })
+
+        if cholera_prob > 0.75:
+             alerts.append({
+                "disease": "Cholera",
+                "level": "CRITICAL",
+                "color": "red",
+                "message": f"{zone.cluster_gastro} GI cases reported. Water contamination risk.",
+                "action": "Distribute Mustaka & Kutaja decoctions."
+            })
+            
+        # ... (Add logic for Flu or 'Stable' status if probabilities are low)
+
+        results.append({
+            "pincode": zone.pincode,
+            "dengue_risk": float(dengue_prob),
+            "cholera_risk": float(cholera_prob),
+            "flu_risk": float(flu_prob),
+            "alerts": alerts
+        })
+
+    return {"status": "success", "predictions": results}

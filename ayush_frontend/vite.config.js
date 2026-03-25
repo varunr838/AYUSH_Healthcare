@@ -1,11 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
+import tailwindcss from '@tailwindcss/vite' // <-- Bring Tailwind back!
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    react(),
-    tailwindcss(),
+    tailwindcss(), // <-- Add it to the plugins array
+    react()
   ],
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-leaflet', 'leaflet'],
+  },
+  resolve: {
+    dedupe: ['react', 'react-dom']
+  }
 })
